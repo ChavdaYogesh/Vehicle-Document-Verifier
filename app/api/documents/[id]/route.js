@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
+import connectToDatabase from '@/lib/mongodb';
+import Document from '@/models/Document';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -7,9 +8,10 @@ export async function DELETE(request, { params }) {
   try {
     const { id } = params;
     
+    await connectToDatabase();
+    
     // Get document first to delete file
-    const docStmt = db.prepare('SELECT upload_path FROM documents WHERE id = ?');
-    const doc = docStmt.get(id);
+    const doc = await Document.findById(id);
 
     if (doc && doc.upload_path) {
       const filePath = path.join(process.cwd(), 'public', doc.upload_path);
@@ -20,10 +22,9 @@ export async function DELETE(request, { params }) {
       }
     }
 
-    const stmt = db.prepare('DELETE FROM documents WHERE id = ?');
-    const info = stmt.run(id);
+    const deleted = await Document.findByIdAndDelete(id);
     
-    if (info.changes === 0) {
+    if (!deleted) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
     

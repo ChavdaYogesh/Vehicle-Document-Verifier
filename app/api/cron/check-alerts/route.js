@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
+import connectToDatabase from '@/lib/mongodb';
+import Document from '@/models/Document';
 import { differenceInDays, parseISO } from 'date-fns';
-import { sendEmail, sendPushNotification, getNotificationConfig } from '@/lib/notifications';
+import { sendEmail, getNotificationConfig } from '@/lib/notifications';
 
 export async function GET(request) {
   const authHeader = request.headers.get('authorization');
@@ -13,17 +14,18 @@ export async function GET(request) {
   }
 
   try {
-    const stmt = db.prepare(`
-      SELECT 
-        d.id as doc_id, d.type, d.expiry_date, 
-        v.id as vehicle_id, v.name as vehicle_name, v.license_plate,
-        v.owner_email, v.owner_phone, v.owner_fcm_token, u.fcm_token as user_fcm_token
-      FROM documents d
-      JOIN vehicles v ON d.vehicle_id = v.id
-      JOIN users u ON v.user_id = u.id
-    `);
-
-    const documents = stmt.all();
+    await connectToDatabase();
+    
+    // Populate vehicle and user
+    const documents = await Document.find()
+      .populate({
+        path: 'vehicle_id',
+        populate: {
+          path: 'user_id',
+          model: 'User'
+        }
+      })
+      .lean();
 
     const vehiclesAlerts = {};
     const today = new Date();
@@ -31,7 +33,12 @@ export async function GET(request) {
     let totalExpiringSoon = 0;
 
     documents.forEach((doc) => {
-      const expiryDate = parseISO(doc.expiry_date);
+      const vehicle = doc.vehicle_id;
+      if (!vehicle) return; // In case of orphaned document
+      
+      const user = vehicle.user_id;
+      
+      const expiryDate = new Date(doc.expiry_date);
       const daysLeft = differenceInDays(expiryDate, today);
 
       let status = null;
@@ -44,19 +51,24 @@ export async function GET(request) {
       }
 
       if (status) {
-        if (!vehiclesAlerts[doc.vehicle_id]) {
-          vehiclesAlerts[doc.vehicle_id] = {
-            vehicle_name: doc.vehicle_name,
-            license_plate: doc.license_plate,
-            owner_email: doc.owner_email,
-            owner_phone: doc.owner_phone,
-            fcm_token: doc.owner_fcm_token || doc.user_fcm_token,
+        const vehicleStrId = vehicle._id.toString();
+        if (!vehiclesAlerts[vehicleStrId]) {
+          vehiclesAlerts[vehicleStrId] = {
+            vehicle_name: vehicle.name,
+            license_plate: vehicle.license_plate,
+            owner_email: vehicle.owner_email,
+            owner_phone: vehicle.owner_phone,
+            fcm_token: vehicle.owner_fcm_token || (user ? user.fcm_token : null),
             documents: []
           };
         }
-        vehiclesAlerts[doc.vehicle_id].documents.push({
+        
+        // Format expiry date as YYYY-MM-DD for consistency
+        const formattedDate = expiryDate.toISOString().split('T')[0];
+        
+        vehiclesAlerts[vehicleStrId].documents.push({
           type: doc.type,
-          expiry_date: doc.expiry_date,
+          expiry_date: formattedDate,
           daysLeft,
           status,
         });

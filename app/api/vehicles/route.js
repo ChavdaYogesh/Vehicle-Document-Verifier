@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
+import connectToDatabase from '@/lib/mongodb';
+import Vehicle from '@/models/Vehicle';
+import User from '@/models/User';
 import { getSession } from '@/lib/auth';
 
 export async function GET() {
   try {
-    const user = getSession();
+    const user = await getSession();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const stmt = db.prepare('SELECT * FROM vehicles WHERE user_id = ? ORDER BY created_at DESC');
-    const vehicles = stmt.all(user.id);
-    return NextResponse.json(vehicles);
+    await connectToDatabase();
+    const vehicles = await Vehicle.find({ user_id: user.id }).sort({ createdAt: -1 }).lean();
+    
+    // Map _id to id for the frontend
+    const formattedVehicles = vehicles.map(v => ({...v, id: v._id.toString()}));
+    
+    return NextResponse.json(formattedVehicles);
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -17,7 +23,7 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const user = getSession();
+    const user = await getSession();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
@@ -27,25 +33,23 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Name and License Plate are required' }, { status: 400 });
     }
 
-    const stmt = db.prepare(`
-      INSERT INTO vehicles (user_id, name, license_plate, owner_email, owner_phone, owner_fcm_token)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    const userRow = db.prepare('SELECT fcm_token FROM users WHERE id = ?').get(user.id);
-    const fcmToken = owner_fcm_token || userRow?.fcm_token || null;
+    await connectToDatabase();
+    
+    const dbUser = await User.findById(user.id);
+    const fcmToken = owner_fcm_token || dbUser?.fcm_token || null;
 
-    const info = stmt.run(
-      user.id,
+    const newVehicle = await Vehicle.create({
+      user_id: user.id,
       name,
       license_plate,
-      owner_email || null,
-      owner_phone || null,
-      fcmToken
-    );
+      owner_email: owner_email || null,
+      owner_phone: owner_phone || null,
+      owner_fcm_token: fcmToken
+    });
 
-    return NextResponse.json({ id: info.lastInsertRowid }, { status: 201 });
+    return NextResponse.json({ id: newVehicle._id.toString() }, { status: 201 });
   } catch (error) {
-    if (error.message.includes('UNIQUE constraint failed')) {
+    if (error.code === 11000) { // MongoDB duplicate key error code
       return NextResponse.json({ error: 'License plate already exists' }, { status: 400 });
     }
     return NextResponse.json({ error: error.message }, { status: 500 });

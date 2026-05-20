@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import db from '@/lib/db';
+import connectToDatabase from '@/lib/mongodb';
+import User from '@/models/User';
 
 export async function POST() {
   try {
     const sessionToken = cookies().get('session_token')?.value;
     
     if (sessionToken) {
-      db.prepare('UPDATE users SET session_token = NULL WHERE session_token = ?').run(sessionToken);
+      await connectToDatabase();
+      await User.updateOne({ session_token: sessionToken }, { $unset: { session_token: 1 } });
     }
 
     cookies().delete('session_token');

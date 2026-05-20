@@ -1,17 +1,19 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
+import connectToDatabase from '@/lib/mongodb';
+import User from '@/models/User';
 import { verifyPassword, generateSessionToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
 export async function POST(req) {
   try {
+    await connectToDatabase();
     const { email, password } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user = await User.findOne({ email });
     
     if (!user || !verifyPassword(password, user.password)) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
@@ -19,7 +21,8 @@ export async function POST(req) {
 
     const sessionToken = generateSessionToken();
 
-    db.prepare('UPDATE users SET session_token = ? WHERE id = ?').run(sessionToken, user.id);
+    user.session_token = sessionToken;
+    await user.save();
 
     // Set cookie
     cookies().set({
@@ -31,7 +34,7 @@ export async function POST(req) {
       maxAge: 60 * 60 * 24 * 7 // 1 week
     });
 
-    return NextResponse.json({ success: true, user: { id: user.id, name: user.name, email: user.email } });
+    return NextResponse.json({ success: true, user: { id: user._id, name: user.name, email: user.email } });
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -7,7 +7,6 @@ import VehicleModal from '@/app/components/VehicleModal';
 import DocumentModal from '@/app/components/DocumentModal';
 import DocumentDetailsModal from '@/app/components/DocumentDetailsModal';
 import AlertsModal from '@/app/components/AlertsModal';
-import EnablePushButton from '@/app/components/EnablePushButton';
 import { differenceInDays, parseISO } from 'date-fns';
 
 export default function Dashboard() {
@@ -23,7 +22,6 @@ export default function Dashboard() {
   const [alertResults, setAlertResults] = useState(null);
   const [processingAlerts, setProcessingAlerts] = useState(false);
   const [hideBanner, setHideBanner] = useState(false);
-  const [pushEnabled, setPushEnabled] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -36,7 +34,6 @@ export default function Dashboard() {
         }
         const data = await res.json();
         setUser(data.user);
-        setPushEnabled(!!data.user.fcm_token);
         fetchVehicles();
       } catch (err) {
         router.push('/login');
@@ -145,7 +142,6 @@ export default function Dashboard() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <EnablePushButton enabled={pushEnabled} onEnabled={() => setPushEnabled(true)} />
           <button className="btn btn-secondary" onClick={triggerAlerts} disabled={processingAlerts}>
             <BellRing size={18} /> {processingAlerts ? 'Sending...' : 'Send Alerts'}
           </button>

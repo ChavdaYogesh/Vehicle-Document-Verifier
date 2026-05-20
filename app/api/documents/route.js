@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
+import connectToDatabase from '@/lib/mongodb';
+import Document from '@/models/Document';
 import path from 'path';
 import fs from 'fs/promises';
 
@@ -31,27 +32,28 @@ export async function POST(request) {
       upload_path = `/uploads/${filename}`;
     }
 
-    // Check if document of this type already exists for this vehicle
-    const existingStmt = db.prepare('SELECT id FROM documents WHERE vehicle_id = ? AND type = ?');
-    const existing = existingStmt.get(vehicle_id, type);
+    await connectToDatabase();
 
-    if (existing) {
+    // Check if document of this type already exists for this vehicle
+    let existingDoc = await Document.findOne({ vehicle_id, type });
+
+    if (existingDoc) {
       // Update
-      const stmt = db.prepare(`
-        UPDATE documents 
-        SET expiry_date = ?, upload_path = coalesce(?, upload_path), updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `);
-      stmt.run(expiry_date, upload_path, existing.id);
-      return NextResponse.json({ id: existing.id, updated: true }, { status: 200 });
+      existingDoc.expiry_date = new Date(expiry_date);
+      if (upload_path) existingDoc.upload_path = upload_path;
+      
+      await existingDoc.save();
+      
+      return NextResponse.json({ id: existingDoc._id.toString(), updated: true }, { status: 200 });
     } else {
       // Insert
-      const stmt = db.prepare(`
-        INSERT INTO documents (vehicle_id, type, upload_path, expiry_date)
-        VALUES (?, ?, ?, ?)
-      `);
-      const info = stmt.run(vehicle_id, type, upload_path, expiry_date);
-      return NextResponse.json({ id: info.lastInsertRowid }, { status: 201 });
+      const newDoc = await Document.create({
+        vehicle_id,
+        type,
+        upload_path,
+        expiry_date: new Date(expiry_date)
+      });
+      return NextResponse.json({ id: newDoc._id.toString() }, { status: 201 });
     }
   } catch (error) {
     console.error('Upload Error:', error);
