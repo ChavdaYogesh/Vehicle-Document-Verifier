@@ -12,7 +12,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+        <main className="main-container">
           {children}
         </main>
       </body>

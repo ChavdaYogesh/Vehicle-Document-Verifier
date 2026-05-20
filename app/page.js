@@ -134,14 +134,14 @@ export default function Dashboard() {
     <div className="animate-fade-in">
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 700, background: 'linear-gradient(to right, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1 className="dashboard-title">
             Vehicle Document Verifier
           </h1>
           <p style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <User size={16} /> Welcome back, {user.name}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="header-actions">
           <button className="btn btn-secondary" onClick={triggerAlerts} disabled={processingAlerts}>
             <BellRing size={18} /> {processingAlerts ? 'Sending...' : 'Send Alerts'}
           </button>
@@ -195,7 +195,7 @@ export default function Dashboard() {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '1.5rem', alignItems: 'start' }}>
           {vehicles.map(vehicle => {
             const isExpanded = expandedVehicleId === vehicle.id;
             
