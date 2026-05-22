@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Document from '@/models/Document';
-import path from 'path';
-import fs from 'fs/promises';
 
 export async function POST(request) {
   try {
@@ -20,16 +18,9 @@ export async function POST(request) {
 
     if (file && file.size > 0) {
       const buffer = Buffer.from(await file.arrayBuffer());
-      const filename = `${Date.now()}-${file.name.replace(/\s/g, '_')}`;
-      
-      // Ensure the directory exists
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-      await fs.mkdir(uploadDir, { recursive: true });
-      
-      const filePath = path.join(uploadDir, filename);
-      await fs.writeFile(filePath, buffer);
-      
-      upload_path = `/uploads/${filename}`;
+      const base64Str = buffer.toString('base64');
+      const mimeType = file.type || 'application/octet-stream';
+      upload_path = `data:${mimeType};base64,${base64Str}`;
     }
 
     await connectToDatabase();
