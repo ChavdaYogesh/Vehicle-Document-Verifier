@@ -150,10 +150,11 @@ input:focus, select:focus {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 50;
-  padding: 1rem;
+  padding: 2rem 1rem;
+  overflow-y: auto;
 }
 
 .modal-content {
@@ -162,8 +163,7 @@ input:focus, select:focus {
   border-radius: var(--radius);
   width: 100%;
   max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
+  margin: auto;
   padding: 2rem;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
   animation: fadeIn 0.3s ease-out;
