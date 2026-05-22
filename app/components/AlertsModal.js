@@ -98,9 +98,16 @@ export default function AlertsModal({ results, onClose }) {
           </button>
         </div>
 
-        <div style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border)' }}>
-          <p style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{results.message}</p>
-        </div>
+        {results.error ? (
+          <div style={{ background: 'var(--danger-bg)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--danger)' }}>
+            <p style={{ fontWeight: 500, color: 'var(--danger)' }}>Error processing alerts:</p>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', fontSize: '0.875rem' }}>{results.error}</p>
+          </div>
+        ) : (
+          <div style={{ background: 'var(--surface-hover)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border)' }}>
+            <p style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{results.message}</p>
+          </div>
+        )}
 
         {(!brevoOk || !fcmOk) && (
           <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.875rem' }}>

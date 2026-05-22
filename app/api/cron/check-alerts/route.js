@@ -31,11 +31,13 @@ export async function GET(request) {
 
     let targetDocuments = documents;
     if (!isCron && sessionUser) {
-      targetDocuments = documents.filter(doc => 
-        doc.vehicle_id && 
-        doc.vehicle_id.user_id && 
-        doc.vehicle_id.user_id._id.toString() === sessionUser.id
-      );
+      targetDocuments = documents.filter(doc => {
+        if (!doc?.vehicle_id?.user_id) return false;
+        const uid = doc.vehicle_id.user_id._id 
+          ? doc.vehicle_id.user_id._id.toString() 
+          : doc.vehicle_id.user_id.toString();
+        return uid === sessionUser.id;
+      });
     }
 
     const vehiclesAlerts = {};
