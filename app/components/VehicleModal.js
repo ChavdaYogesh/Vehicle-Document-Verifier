@@ -14,7 +14,6 @@ export default function VehicleModal({ onClose, onSuccess }) {
     const data = {
       name: formData.get('name'),
       license_plate: formData.get('license_plate'),
-      owner_email: formData.get('owner_email'),
       owner_phone: formData.get('owner_phone'),
       owner_fcm_token: formData.get('owner_fcm_token'),
     };
@@ -56,10 +55,6 @@ export default function VehicleModal({ onClose, onSuccess }) {
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>License Plate Number *</label>
             <input type="text" name="license_plate" required placeholder="e.g. GJ-01-AB-1234" />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Owner/Manager Email (for alerts)</label>
-            <input type="email" name="owner_email" placeholder="manager@fleet.com" />
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>FCM Device Token (optional)</label>

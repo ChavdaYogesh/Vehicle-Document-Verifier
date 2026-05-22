@@ -3,13 +3,15 @@ import connectToDatabase from '@/lib/mongodb';
 import Document from '@/models/Document';
 import { differenceInDays, parseISO } from 'date-fns';
 import { sendEmail, getNotificationConfig } from '@/lib/notifications';
+import { getSession } from '@/lib/auth';
 
 export async function GET(request) {
   const authHeader = request.headers.get('authorization');
-  if (
-    process.env.CRON_SECRET && 
-    authHeader !== `Bearer ${process.env.CRON_SECRET}`
-  ) {
+  const isCron = process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`;
+  
+  const sessionUser = await getSession();
+
+  if (!isCron && !sessionUser) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
@@ -27,12 +29,21 @@ export async function GET(request) {
       })
       .lean();
 
+    let targetDocuments = documents;
+    if (!isCron && sessionUser) {
+      targetDocuments = documents.filter(doc => 
+        doc.vehicle_id && 
+        doc.vehicle_id.user_id && 
+        doc.vehicle_id.user_id._id.toString() === sessionUser.id
+      );
+    }
+
     const vehiclesAlerts = {};
     const today = new Date();
     let totalExpired = 0;
     let totalExpiringSoon = 0;
 
-    documents.forEach((doc) => {
+    targetDocuments.forEach((doc) => {
       const vehicle = doc.vehicle_id;
       if (!vehicle) return; // In case of orphaned document
       
@@ -57,6 +68,7 @@ export async function GET(request) {
             vehicle_name: vehicle.name,
             license_plate: vehicle.license_plate,
             owner_email: vehicle.owner_email,
+            user_email: user ? user.email : null,
             owner_phone: vehicle.owner_phone,
             fcm_token: vehicle.owner_fcm_token || (user ? user.fcm_token : null),
             documents: []
@@ -102,8 +114,17 @@ export async function GET(request) {
 
       let emailResult = null;
 
-      if (vehicle.owner_email) {
-        emailResult = await sendEmail(vehicle.owner_email, subject, message);
+      const emailsToSend = new Set();
+      if (vehicle.owner_email) emailsToSend.add(vehicle.owner_email);
+      if (vehicle.user_email) emailsToSend.add(vehicle.user_email);
+
+      const emailResults = [];
+      for (const email of emailsToSend) {
+        const res = await sendEmail(email, subject, message);
+        emailResults.push(res);
+      }
+      if (emailResults.length > 0) {
+        emailResult = emailResults[0];
       }
 
       alertsSent.push({
@@ -111,13 +132,14 @@ export async function GET(request) {
         documentCount: vehicle.documents.length,
         message,
         ownerEmail: vehicle.owner_email || null,
+        userEmail: vehicle.user_email || null,
         emailResult,
       });
     }
 
     return NextResponse.json({
       success: true,
-      message: `Processed ${documents.length} documents. Found ${totalExpired} expired and ${totalExpiringSoon} expiring soon across ${Object.keys(vehiclesAlerts).length} vehicles.`,
+      message: `Processed ${targetDocuments.length} documents. Found ${totalExpired} expired and ${totalExpiringSoon} expiring soon across ${Object.keys(vehiclesAlerts).length} vehicles.`,
       config,
       alertsSent,
     });
