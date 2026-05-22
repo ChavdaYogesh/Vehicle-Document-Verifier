@@ -27,24 +27,18 @@ export async function POST(request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
-    const { name, license_plate, owner_email, owner_phone, owner_fcm_token } = body;
+    const { name, license_plate } = body;
 
     if (!name || !license_plate) {
       return NextResponse.json({ error: 'Name and License Plate are required' }, { status: 400 });
     }
 
     await connectToDatabase();
-    
-    const dbUser = await User.findById(user.id);
-    const fcmToken = owner_fcm_token || dbUser?.fcm_token || null;
 
     const newVehicle = await Vehicle.create({
       user_id: user.id,
       name,
-      license_plate,
-      owner_email: owner_email || null,
-      owner_phone: owner_phone || null,
-      owner_fcm_token: fcmToken
+      license_plate
     });
 
     return NextResponse.json({ id: newVehicle._id.toString() }, { status: 201 });

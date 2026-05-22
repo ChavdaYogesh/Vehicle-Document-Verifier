@@ -1,9 +1,14 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, UploadCloud } from 'lucide-react';
+
+const DOC_TYPES = [
+  'Insurance', 'PUC', 'Fitness', 'RC', 'Calibration', '9 number', 'Gujarat Permit', 'National Permit'
+];
 
 export default function VehicleModal({ onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [file, setFile] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -11,24 +16,47 @@ export default function VehicleModal({ onClose, onSuccess }) {
     setError('');
 
     const formData = new FormData(e.target);
-    const data = {
+    const vehicleData = {
       name: formData.get('name'),
       license_plate: formData.get('license_plate'),
-      owner_phone: formData.get('owner_phone'),
-      owner_fcm_token: formData.get('owner_fcm_token'),
     };
 
     try {
+      // 1. Create Vehicle
       const res = await fetch('/api/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(vehicleData),
       });
 
       const result = await res.json();
       
       if (!res.ok) throw new Error(result.error || 'Failed to add vehicle');
       
+      const vehicleId = result.id;
+
+      // 2. Add Document if provided
+      const docType = formData.get('type');
+      const expiryDate = formData.get('expiry_date');
+
+      if (docType && expiryDate) {
+        const docFormData = new FormData();
+        docFormData.append('vehicle_id', vehicleId);
+        docFormData.append('type', docType);
+        docFormData.append('expiry_date', expiryDate);
+        if (file) {
+          docFormData.set('file', file);
+        }
+
+        const docRes = await fetch('/api/documents', {
+          method: 'POST',
+          body: docFormData,
+        });
+
+        const docResult = await docRes.json();
+        if (!docRes.ok) throw new Error(docResult.error || 'Vehicle created, but failed to upload document');
+      }
+
       onSuccess();
     } catch (err) {
       setError(err.message);
@@ -39,7 +67,7 @@ export default function VehicleModal({ onClose, onSuccess }) {
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-content">
+      <div className="modal-content" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Add New Vehicle</h2>
           <button onClick={onClose} style={{ color: 'var(--text-secondary)' }}><X size={24} /></button>
@@ -56,16 +84,53 @@ export default function VehicleModal({ onClose, onSuccess }) {
             <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>License Plate Number *</label>
             <input type="text" name="license_plate" required placeholder="e.g. GJ-01-AB-1234" />
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>FCM Device Token (optional)</label>
-            <input type="text" name="owner_fcm_token" placeholder="Leave blank to use your dashboard push token" />
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-              Use &quot;Enable push alerts&quot; on the dashboard, or paste a token from a Firebase mobile app.
-            </p>
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Owner Phone (optional contact)</label>
-            <input type="tel" name="owner_phone" placeholder="+919876543210" />
+
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Initial Document (Optional)</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Document Type</label>
+                <select name="type">
+                  <option value="">Select Document Type...</option>
+                  {DOC_TYPES.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Expiry Date</label>
+                <input type="date" name="expiry_date" />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Upload Document File</label>
+                <div style={{
+                  border: '2px dashed var(--border)',
+                  borderRadius: '8px',
+                  padding: '1.5rem',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  background: 'var(--surface-hover)',
+                  position: 'relative'
+                }}>
+                  <input 
+                    type="file" 
+                    onChange={(e) => setFile(e.target.files[0])}
+                    style={{
+                      position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer'
+                    }}
+                  />
+                  <UploadCloud size={24} style={{ color: 'var(--primary)', marginBottom: '0.5rem', margin: '0 auto' }} />
+                  {file ? (
+                    <p style={{ color: 'var(--success)', fontWeight: 500, fontSize: '0.875rem' }}>{file.name}</p>
+                  ) : (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Click or drag file to upload</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
           
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
