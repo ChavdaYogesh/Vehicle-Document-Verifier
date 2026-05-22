@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Document from '@/models/Document';
+import Vehicle from '@/models/Vehicle';
 import { differenceInDays, parseISO } from 'date-fns';
 import { sendEmail, getNotificationConfig } from '@/lib/notifications';
 import { getSession } from '@/lib/auth';
