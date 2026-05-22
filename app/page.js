@@ -131,7 +131,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="animate-fade-in">
+    <>
+      <div className="animate-fade-in">
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 className="dashboard-title">
@@ -275,6 +276,7 @@ export default function Dashboard() {
           })}
         </div>
       )}
+      </div>
 
       {showVehicleModal && (
         <VehicleModal 
@@ -305,6 +307,6 @@ export default function Dashboard() {
           onClose={() => setAlertResults(null)} 
         />
       )}
-    </div>
+    </>
   );
 }
