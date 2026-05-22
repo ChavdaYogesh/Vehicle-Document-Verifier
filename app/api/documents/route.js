@@ -9,6 +9,11 @@ export async function POST(request) {
     const type = formData.get('type');
     const expiry_date = formData.get('expiry_date');
     const file = formData.get('file');
+    
+    const extractedText = formData.get('extractedText');
+    const extractionConfidence = formData.get('extractionConfidence');
+    const extractionStatus = formData.get('extractionStatus') || 'manual';
+    const detectedDocumentType = formData.get('detectedDocumentType');
 
     if (!vehicle_id || !type || !expiry_date) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -32,6 +37,10 @@ export async function POST(request) {
       // Update
       existingDoc.expiry_date = new Date(expiry_date);
       if (upload_path) existingDoc.upload_path = upload_path;
+      if (extractedText) existingDoc.extractedText = extractedText;
+      if (extractionConfidence) existingDoc.extractionConfidence = Number(extractionConfidence);
+      if (extractionStatus) existingDoc.extractionStatus = extractionStatus;
+      if (detectedDocumentType) existingDoc.detectedDocumentType = detectedDocumentType;
       
       await existingDoc.save();
       
@@ -42,7 +51,11 @@ export async function POST(request) {
         vehicle_id,
         type,
         upload_path,
-        expiry_date: new Date(expiry_date)
+        expiry_date: new Date(expiry_date),
+        extractedText,
+        extractionConfidence: extractionConfidence ? Number(extractionConfidence) : undefined,
+        extractionStatus,
+        detectedDocumentType
       });
       return NextResponse.json({ id: newDoc._id.toString() }, { status: 201 });
     }

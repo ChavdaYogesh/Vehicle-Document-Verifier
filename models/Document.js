@@ -21,6 +21,20 @@ const DocumentSchema = new mongoose.Schema({
     type: String,
     default: 'valid',
   },
+  extractedText: {
+    type: String,
+  },
+  extractionConfidence: {
+    type: Number,
+  },
+  extractionStatus: {
+    type: String,
+    enum: ['pending', 'success', 'failed', 'manual', 'unsupported'],
+    default: 'manual',
+  },
+  detectedDocumentType: {
+    type: String,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
