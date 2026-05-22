@@ -43,12 +43,16 @@ export default function DocumentModal({ vehicle, onClose, onSuccess }) {
         setOcrData(data);
         if (data.documentType) setDocType(data.documentType);
         if (data.expiryDate) setExpiryDate(data.expiryDate);
+      } else if (res.ok && !data.success) {
+        setOcrData({ confidence: 0, failed: true, message: data.message });
       } else if (!res.ok) {
         // We don't block upload if OCR fails, just show a minor warning or nothing
         console.warn('OCR Failed:', data.error);
+        setOcrData({ confidence: 0, failed: true, message: 'Server error during analysis.' });
       }
     } catch (err) {
       console.error('OCR Network Error:', err);
+      setOcrData({ confidence: 0, failed: true, message: 'Network error during analysis.' });
     } finally {
       setExtracting(false);
     }
@@ -68,7 +72,7 @@ export default function DocumentModal({ vehicle, onClose, onSuccess }) {
       formData.set('file', file);
     }
 
-    if (ocrData) {
+    if (ocrData && !ocrData.failed) {
       formData.append('extractedText', ocrData.rawText || '');
       formData.append('extractionConfidence', ocrData.confidence || 0);
       formData.append('extractionStatus', 'success');
@@ -141,9 +145,14 @@ export default function DocumentModal({ vehicle, onClose, onSuccess }) {
                 <>
                   <CheckCircle size={32} style={{ color: 'var(--success)', marginBottom: '0.5rem', margin: '0 auto' }} />
                   <p style={{ color: 'var(--success)', fontWeight: 500 }}>{file.name}</p>
-                  {ocrData && (
+                  {ocrData && !ocrData.failed && (
                      <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '1rem', fontSize: '0.75rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>OCR Confidence: <strong style={{ color: ocrData.confidence > 80 ? 'var(--success)' : 'var(--warning)' }}>{ocrData.confidence}%</strong></span>
+                     </div>
+                  )}
+                  {ocrData && ocrData.failed && (
+                     <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '1rem', fontSize: '0.75rem' }}>
+                        <span style={{ color: 'var(--warning)' }}><AlertCircle size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> {ocrData.message} Try JPG/PNG.</span>
                      </div>
                   )}
                 </>
@@ -169,7 +178,7 @@ export default function DocumentModal({ vehicle, onClose, onSuccess }) {
           <div>
             <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Expiry Date *</label>
             <input type="date" name="expiry_date" required value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
-            {ocrData && !ocrData.expiryDate && (
+            {ocrData && !ocrData.failed && !ocrData.expiryDate && (
                <p style={{ color: 'var(--warning)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                  <AlertCircle size={12} /> Could not detect expiry date automatically. Please enter it manually.
                </p>
