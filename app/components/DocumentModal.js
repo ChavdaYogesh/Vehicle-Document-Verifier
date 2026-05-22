@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { X, UploadCloud, FileSearch, CheckCircle, AlertCircle } from 'lucide-react';
 
 const DOC_TYPES = [
-  'Insurance', 'PUC', 'Fitness', 'RC', 'Calibration', '9 number', 'Gujarat Permit', 'National Permit'
+  'Insurance', 'PUC', 'Fitness', 'RC', 'Calibration', '9 number', 'Gujarat Permit', 'National Permit', 'Tax'
 ];
 
 export default function DocumentModal({ vehicle, onClose, onSuccess }) {
@@ -13,6 +13,7 @@ export default function DocumentModal({ vehicle, onClose, onSuccess }) {
   // Controlled inputs for OCR pre-filling
   const [docType, setDocType] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
+  const [expiryType, setExpiryType] = useState('DIRECT');
   
   // OCR State
   const [extracting, setExtracting] = useState(false);
@@ -28,6 +29,7 @@ export default function DocumentModal({ vehicle, onClose, onSuccess }) {
     setExtracting(true);
     setError('');
     setOcrData(null);
+    setExpiryType('DIRECT'); // Reset
 
     const formData = new FormData();
     formData.append('file', selectedFile);
@@ -43,6 +45,7 @@ export default function DocumentModal({ vehicle, onClose, onSuccess }) {
         setOcrData(data);
         if (data.documentType) setDocType(data.documentType);
         if (data.expiryDate) setExpiryDate(data.expiryDate);
+        if (data.expiryType) setExpiryType(data.expiryType);
       } else if (res.ok && !data.success) {
         setOcrData({ confidence: 0, failed: true, message: data.message });
       } else if (!res.ok) {
@@ -66,7 +69,8 @@ export default function DocumentModal({ vehicle, onClose, onSuccess }) {
     const formData = new FormData();
     formData.append('vehicle_id', vehicle.id);
     formData.append('type', docType);
-    formData.append('expiry_date', expiryDate);
+    if (expiryDate) formData.append('expiry_date', expiryDate);
+    formData.append('expiryType', expiryType);
     
     if (file) {
       formData.set('file', file);
@@ -97,9 +101,12 @@ export default function DocumentModal({ vehicle, onClose, onSuccess }) {
     }
   };
 
+  const hasFitness = vehicle.documents?.some(d => d.type === 'Fitness');
+  const showFitnessWarning = expiryType === 'FITNESS_LINKED' && !hasFitness;
+
   return (
     <div className="modal-backdrop">
-      <div className="modal-content">
+      <div className="modal-content" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Update Document</h2>
           <button onClick={onClose} style={{ color: 'var(--text-secondary)' }}><X size={24} /></button>
@@ -176,9 +183,37 @@ export default function DocumentModal({ vehicle, onClose, onSuccess }) {
           </div>
           
           <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Expiry Date *</label>
-            <input type="date" name="expiry_date" required value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
-            {ocrData && !ocrData.failed && !ocrData.expiryDate && (
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Expiry Date {expiryType === 'DIRECT' && '*'}</label>
+            <input 
+              type={expiryType === 'DIRECT' ? 'date' : 'text'} 
+              name="expiry_date" 
+              required={expiryType === 'DIRECT'} 
+              value={expiryType === 'DIRECT' ? expiryDate : 'Calculated Automatically'} 
+              onChange={e => setExpiryDate(e.target.value)} 
+              disabled={expiryType !== 'DIRECT'}
+              style={expiryType !== 'DIRECT' ? { background: 'var(--surface-hover)', color: 'var(--text-secondary)', fontStyle: 'italic' } : {}}
+            />
+            {expiryType === 'FITNESS_LINKED' && (
+               <p style={{ color: 'var(--primary)', fontSize: '0.75rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                 <AlertCircle size={12} /> Expiry linked to Fitness Certificate.
+               </p>
+            )}
+            {showFitnessWarning && (
+              <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--warning)', borderRadius: '6px' }}>
+                <p style={{ color: 'var(--warning)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
+                  <AlertCircle size={16} /> Fitness Certificate Missing
+                </p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem', marginLeft: '1.5rem' }}>
+                  This document's validity depends on your Fitness Certificate. Please ensure you upload the Fitness Certificate for accurate tracking.
+                </p>
+              </div>
+            )}
+            {expiryType === 'MULTI_DOCUMENT_DEPENDENT' && (
+               <p style={{ color: 'var(--primary)', fontSize: '0.75rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                 <AlertCircle size={12} /> Expiry depends on multiple other documents (Fitness, Insurance, Tax).
+               </p>
+            )}
+            {ocrData && !ocrData.failed && !ocrData.expiryDate && expiryType === 'DIRECT' && (
                <p style={{ color: 'var(--warning)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                  <AlertCircle size={12} /> Could not detect expiry date automatically. Please enter it manually.
                </p>

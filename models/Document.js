@@ -15,7 +15,24 @@ const DocumentSchema = new mongoose.Schema({
   },
   expiry_date: {
     type: Date,
-    required: true,
+    // No longer required, as some docs depend on others
+  },
+  expiryType: {
+    type: String,
+    enum: ['DIRECT', 'FITNESS_LINKED', 'MULTI_DOCUMENT_DEPENDENT', 'UNKNOWN'],
+    default: 'DIRECT'
+  },
+  dependencyStatus: {
+    type: String,
+    enum: ['ACTIVE', 'EXPIRING_SOON', 'EXPIRED', 'INVALID_DEPENDENCY', 'NO_EXPIRY_FOUND'],
+    default: 'ACTIVE'
+  },
+  linkedDocuments: {
+    type: [String],
+    default: []
+  },
+  linkedExpirySource: {
+    type: String
   },
   status: {
     type: String,

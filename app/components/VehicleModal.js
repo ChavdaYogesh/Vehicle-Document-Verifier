@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, UploadCloud, FileSearch, CheckCircle, AlertCircle } from 'lucide-react';
 
 const DOC_TYPES = [
-  'Insurance', 'PUC', 'Fitness', 'RC', 'Calibration', '9 number', 'Gujarat Permit', 'National Permit'
+  'Insurance', 'PUC', 'Fitness', 'RC', 'Calibration', '9 number', 'Gujarat Permit', 'National Permit', 'Tax'
 ];
 
 export default function VehicleModal({ onClose, onSuccess }) {
@@ -14,6 +14,7 @@ export default function VehicleModal({ onClose, onSuccess }) {
   const [licensePlate, setLicensePlate] = useState('');
   const [docType, setDocType] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
+  const [expiryType, setExpiryType] = useState('DIRECT');
   
   const [file, setFile] = useState(null);
   
@@ -30,6 +31,7 @@ export default function VehicleModal({ onClose, onSuccess }) {
     setExtracting(true);
     setError('');
     setOcrData(null);
+    setExpiryType('DIRECT'); // Reset
 
     const formData = new FormData();
     formData.append('file', selectedFile);
@@ -45,6 +47,7 @@ export default function VehicleModal({ onClose, onSuccess }) {
         setOcrData(data);
         if (data.documentType) setDocType(data.documentType);
         if (data.expiryDate) setExpiryDate(data.expiryDate);
+        if (data.expiryType) setExpiryType(data.expiryType);
         if (data.vehicleNumber && !licensePlate) {
           // Format back to GJ-01-AB-1234 if needed, or just set it
           setLicensePlate(data.vehicleNumber);
@@ -88,11 +91,13 @@ export default function VehicleModal({ onClose, onSuccess }) {
       const vehicleId = result.id;
 
       // 2. Add Document if provided
-      if (docType && expiryDate) {
+      if (docType && (expiryDate || expiryType !== 'DIRECT')) {
         const docFormData = new FormData();
         docFormData.append('vehicle_id', vehicleId);
         docFormData.append('type', docType);
-        docFormData.append('expiry_date', expiryDate);
+        if (expiryDate) docFormData.append('expiry_date', expiryDate);
+        docFormData.append('expiryType', expiryType);
+        
         if (file) {
           docFormData.set('file', file);
         }
@@ -199,8 +204,30 @@ export default function VehicleModal({ onClose, onSuccess }) {
               
               <div>
                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Expiry Date</label>
-                <input type="date" name="expiry_date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} />
-                {ocrData && !ocrData.failed && !ocrData.expiryDate && (
+                <input 
+                  type={expiryType === 'DIRECT' ? 'date' : 'text'} 
+                  name="expiry_date" 
+                  value={expiryType === 'DIRECT' ? expiryDate : 'Calculated Automatically'} 
+                  onChange={e => setExpiryDate(e.target.value)} 
+                  disabled={expiryType !== 'DIRECT'}
+                  style={expiryType !== 'DIRECT' ? { background: 'var(--surface-hover)', color: 'var(--text-secondary)', fontStyle: 'italic' } : {}}
+                />
+                {expiryType === 'FITNESS_LINKED' && (
+                   <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid var(--warning)', borderRadius: '6px' }}>
+                     <p style={{ color: 'var(--warning)', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
+                       <AlertCircle size={16} /> Fitness Certificate Needed
+                     </p>
+                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem', marginLeft: '1.5rem' }}>
+                       This document's validity depends on a Fitness Certificate. Please upload the Fitness Certificate next to ensure accurate tracking.
+                     </p>
+                   </div>
+                )}
+                {expiryType === 'MULTI_DOCUMENT_DEPENDENT' && (
+                   <p style={{ color: 'var(--primary)', fontSize: '0.75rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                     <AlertCircle size={12} /> Expiry depends on multiple other documents (Fitness, Insurance, Tax).
+                   </p>
+                )}
+                {ocrData && !ocrData.failed && !ocrData.expiryDate && expiryType === 'DIRECT' && (
                   <p style={{ color: 'var(--warning)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                     <AlertCircle size={12} /> Could not detect expiry date automatically.
                   </p>

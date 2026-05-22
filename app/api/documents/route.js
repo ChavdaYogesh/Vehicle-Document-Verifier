@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/mongodb';
 import Document from '@/models/Document';
+import { syncVehicleDependencies } from '@/lib/dependency';
 
 export async function POST(request) {
   try {
@@ -8,6 +9,7 @@ export async function POST(request) {
     const vehicle_id = formData.get('vehicle_id');
     const type = formData.get('type');
     const expiry_date = formData.get('expiry_date');
+    const expiryType = formData.get('expiryType') || 'DIRECT';
     const file = formData.get('file');
     
     const extractedText = formData.get('extractedText');
@@ -15,7 +17,7 @@ export async function POST(request) {
     const extractionStatus = formData.get('extractionStatus') || 'manual';
     const detectedDocumentType = formData.get('detectedDocumentType');
 
-    if (!vehicle_id || !type || !expiry_date) {
+    if (!vehicle_id || !type) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -35,7 +37,9 @@ export async function POST(request) {
 
     if (existingDoc) {
       // Update
-      existingDoc.expiry_date = new Date(expiry_date);
+      existingDoc.expiryType = expiryType;
+      existingDoc.expiry_date = expiry_date ? new Date(expiry_date) : undefined;
+      
       if (upload_path) existingDoc.upload_path = upload_path;
       if (extractedText) existingDoc.extractedText = extractedText;
       if (extractionConfidence) existingDoc.extractionConfidence = Number(extractionConfidence);
@@ -44,6 +48,8 @@ export async function POST(request) {
       
       await existingDoc.save();
       
+      await syncVehicleDependencies(vehicle_id);
+      
       return NextResponse.json({ id: existingDoc._id.toString(), updated: true }, { status: 200 });
     } else {
       // Insert
@@ -51,12 +57,16 @@ export async function POST(request) {
         vehicle_id,
         type,
         upload_path,
-        expiry_date: new Date(expiry_date),
+        expiryType,
+        expiry_date: expiry_date ? new Date(expiry_date) : undefined,
         extractedText,
         extractionConfidence: extractionConfidence ? Number(extractionConfidence) : undefined,
         extractionStatus,
         detectedDocumentType
       });
+      
+      await syncVehicleDependencies(vehicle_id);
+      
       return NextResponse.json({ id: newDoc._id.toString() }, { status: 201 });
     }
   } catch (error) {

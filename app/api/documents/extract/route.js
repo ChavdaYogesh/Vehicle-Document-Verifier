@@ -41,6 +41,7 @@ export async function POST(request) {
       success: true,
       documentType: extractedData.documentType,
       expiryDate: extractedData.expiryDate,
+      expiryType: extractedData.expiryType,
       vehicleNumber: extractedData.vehicleNumber,
       confidence: Math.round(textResult.confidence),
       rawText: textResult.text.substring(0, 500) // Don't return massive strings to the frontend

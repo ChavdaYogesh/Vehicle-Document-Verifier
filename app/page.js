@@ -94,11 +94,18 @@ export default function Dashboard() {
     const today = new Date();
     vehicles.forEach(vehicle => {
       vehicle.documents?.forEach(doc => {
-        const daysLeft = differenceInDays(parseISO(doc.expiry_date), today);
-        if (daysLeft < 0) {
-          alerts.push({ vehicle: vehicle.name, plate: vehicle.license_plate, type: doc.type, status: 'Expired', days: daysLeft });
-        } else if (daysLeft <= 30) {
+        if (doc.dependencyStatus === 'INVALID_DEPENDENCY' || doc.dependencyStatus === 'EXPIRED') {
+          alerts.push({ vehicle: vehicle.name, plate: vehicle.license_plate, type: doc.type, status: 'Expired', days: -1 });
+        } else if (doc.dependencyStatus === 'EXPIRING_SOON' && doc.expiry_date) {
+          const daysLeft = differenceInDays(parseISO(doc.expiry_date), today);
           alerts.push({ vehicle: vehicle.name, plate: vehicle.license_plate, type: doc.type, status: 'Expiring Soon', days: daysLeft });
+        } else if (!doc.dependencyStatus && doc.expiry_date) {
+          const daysLeft = differenceInDays(parseISO(doc.expiry_date), today);
+          if (daysLeft < 0) {
+            alerts.push({ vehicle: vehicle.name, plate: vehicle.license_plate, type: doc.type, status: 'Expired', days: daysLeft });
+          } else if (daysLeft <= 30) {
+            alerts.push({ vehicle: vehicle.name, plate: vehicle.license_plate, type: doc.type, status: 'Expiring Soon', days: daysLeft });
+          }
         }
       });
     });
@@ -111,6 +118,14 @@ export default function Dashboard() {
 
   const getDocumentStatus = (doc) => {
     if (!doc) return 'missing';
+    if (doc.dependencyStatus) {
+      if (doc.dependencyStatus === 'INVALID_DEPENDENCY' || doc.dependencyStatus === 'EXPIRED') return 'expired';
+      if (doc.dependencyStatus === 'EXPIRING_SOON') return 'expiring_soon';
+      if (doc.dependencyStatus === 'NO_EXPIRY_FOUND') return 'missing';
+      if (doc.dependencyStatus === 'ACTIVE') return 'valid';
+    }
+    
+    if (!doc.expiry_date) return 'missing';
     const daysLeft = differenceInDays(parseISO(doc.expiry_date), new Date());
     if (daysLeft < 0) return 'expired';
     if (daysLeft <= 30) return 'expiring_soon';
@@ -227,7 +242,7 @@ export default function Dashboard() {
                 
                 {isExpanded && (
                   <div className="animate-fade-in" style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {['Insurance', 'PUC', 'Fitness', 'RC', 'Calibration', '9 number', 'Gujarat Permit', 'National Permit'].map(docType => {
+                    {['Insurance', 'PUC', 'Fitness', 'RC', 'Calibration', '9 number', 'Gujarat Permit', 'National Permit', 'Tax'].map(docType => {
                       const doc = vehicle.documents?.find(d => d.type === docType);
                       const status = getDocumentStatus(doc);
                       const hasDoc = !!doc;
